@@ -1,5 +1,6 @@
 const { Event } = require("../models/eventModel");
 const { EventRequest } = require("../models/eventRequestModel");
+const { User } = require("../models/userModel");
 
 const createEvent = async (req, res) => {
   const { name, sport, start_time, max_players } = req.body;
@@ -7,7 +8,8 @@ const createEvent = async (req, res) => {
     return res.status(400).json({ message: "Missing required fields" });
   }
   try {
-    const organizer = await User.findById(req.user.id).lean();
+    const organizer = await User.findById(req.user._id).lean();
+
     const event = new Event({
       name,
       sport,
@@ -30,7 +32,7 @@ const getEvents = async (req, res) => {
       .populate("organizer_id", "username")
       .lean();
     const eventRequests = await EventRequest.find({
-      user_id: req.user.id,
+      user_id: req.user._id,
     }).lean();
     const requestedEvents = eventRequests.map((request) =>
       request.event_id.toString()
@@ -58,6 +60,7 @@ const requestForAnEvent = async (req, res) => {
     if (!event) {
       return res.sendStatus(404);
     }
+    
     const eventRequests = await EventRequest.find({ event_id: event._id })
       .populate("user_id", "username")
       .lean();
@@ -84,24 +87,27 @@ const joinEvent = async (req, res) => {
     if (!event) {
       return res.sendStatus(404);
     }
+
     const eventRequests = await EventRequest.find({
       event_id: event._id,
     }).lean();
+   
     const userRequest = eventRequests.find(
-      (request) => request.user_id.toString() === req.user.id
+      (request) => request.user_id.toString() === req.user._id
     );
+   
     if (userRequest) {
       return res.sendStatus(400);
     }
     if (eventRequests.length >= event.max_players) {
       return res.sendStatus(409);
     }
-    const eventRequest = new EventRequest({
-      user_id: req.user.id,
+    const eventRequest = await EventRequest.create({
+      user_id: req.user._id,
       event_id: event._id,
       status: "pending",
     });
-    await eventRequest.save();
+    
     res.sendStatus(201);
   } catch (err) {
     console.error(err);
