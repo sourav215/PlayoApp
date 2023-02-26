@@ -4,32 +4,32 @@ const bcrypt = require("bcryptjs");
 const { User } = require("../models/userModel");
 
 const generateToken = (user) => {
-  const { _id, name, email } = user;
-  let token = jwt.sign({ _id, name, email }, config.JWT_SECRET_KEY);
+  const { _id, username } = user;
+  let token = jwt.sign({ _id, username }, config.JWT_SECRET_KEY);
 
   return token;
 };
 
 const registerNewUser = async (req, res) => {
   try {
-    let { name, email, password } = req.body;
+    let { username, password } = req.body;
 
-    if (!name || !email || !password) {
+    if (!username || !password) {
       return res.status(400).send({
         error: "Incomplete data",
       });
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ username });
     if (user) {
       return res.status(400).send({
-        error: "User with email already exists",
+        error: "User with username already exists",
       });
     }
 
     password = bcrypt.hashSync(password);
 
-    user = await User.create({ name, email, password });
+    user = await User.create({ username, password });
 
     return res.send({
       message: "Registration Successful",
@@ -43,13 +43,13 @@ const registerNewUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ username });
 
     if (!user) {
       return res.status(400).send({
-        error: "User with email does not exist",
+        error: "User with this username does not exist",
       });
     }
 
@@ -60,7 +60,7 @@ const loginUser = async (req, res) => {
     }
 
     const token = generateToken(user);
-    const { _id, name } = user;
+    const { _id } = user;
 
     return res.send({
       message: "Login Successful",
@@ -68,8 +68,7 @@ const loginUser = async (req, res) => {
         token,
         user: {
           _id,
-          name,
-          email,
+          username,
         },
       },
     });
@@ -84,9 +83,9 @@ const loginUser = async (req, res) => {
 const getLoggedInUser = async (req, res) => {
   try {
     const user = req.user;
-
+    const { _id, username } = user;
     return res.send({
-      data: user,
+      data: { _id, username },
     });
   } catch (err) {
     return res.status(500).send({
